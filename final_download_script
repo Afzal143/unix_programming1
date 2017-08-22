@@ -1,0 +1,83 @@
+#! /bin/bash
+# Downloading archive wget -c, for resumption if interupt due to internet
+# connectivity
+# error checking will in be found on errlog file if that script do not run
+# success message will find in output file
+
+# trap will catch the terminal interrupt signal
+# press ctrl + c to interrupt the program
+
+
+trap 'echo Program interrupted; exit 1' SIGINT
+
+My_file() {
+
+	#start time t
+	t=$(date +%s)
+
+	# using mktemp it will create file or folder in the run time	
+	archivefile=`mktemp`
+
+	# valid url
+	wget -c https://archive.org/download/stackexchange/datascience.stackexchange.com.7z -O -> $archivefile 2> errlog
+	
+	# invalid url
+	#wget -c https://nowhereitfoind.com/hello.pdf.7z -O -> $archivefile 2>errlog 
+	if [[ $? -ne 0 ]];
+		then 
+			echo " url is invalid"
+			rm -r $archivefile
+			exit 1;
+		else
+		
+	 	#archivefile=`mktemp`
+        	echo Downloading the archive file $archivefile
+
+		#end time
+		nt=$(date +%s)
+
+		# size of the file
+		size=$(stat -c %s $archivefile) > output 2>> errlog
+		echo Size of the file : $size
+
+		#Download speed
+		change=$(echo $nt-$t | bc)
+		var=$(echo "scale = 2; $size / $change / 1048576" | bc)
+		echo Download speed in Mb/s : $var
+
+		# Files inside the archive and print the files name
+		# to extract that archive you would need the 7z installed
+
+		7za e $archivefile -o/tmp/extractfol >> output 2>> errlog
+		echo Files inside the archive
+		ls /tmp/extractfol
+
+		# compression ratio
+	
+		comsize=$(du /tmp/extractfol | grep -Eo '^\s*[0-9]{1,5}' )
+		rat=$(echo "scale =3; $comsize / $size" | bc)
+		echo compression ratio is $rat
+
+		# list the line count for each file and total line count
+		echo list line for each files and total line count 
+		wc -l /tmp/extractfol/*
+	fi
+}
+
+My_file
+
+
+
+clean_up () {
+	# cleaning up everything and saving success message in output file.
+	echo "$1"
+	rm -r $archivefile >> output
+	rm -r /tmp/extractfol >> output
+        
+	
+}
+
+clean_up " file '$archivefile' is deleted 
+ file '/tmp/extractfol' is deleted too! "
+
+exit 0 
